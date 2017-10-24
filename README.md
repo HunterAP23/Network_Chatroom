@@ -1,9 +1,7 @@
 "# Network_Chatroom" 
 
-Etgar Kaspi
-Lucas Crockett
-Peter Wright
-Brendan Brence
+Collaborators:
+Etgar Kaspi / Lucas Crockett / Peter Wright / Brendan Brence
 
 The idea is for the client to collect the username and password,
 then the server would receive that information and compare to the file of listed usernames/passwords.
