@@ -1,0 +1,6 @@
+//UserNames are in the left column below, the corresponding passwords in the right column
+//Only alphanumeric characters allowed for usernames and passcodes, no spaces, periods, etc
+BobbySands::IrelandForever
+PPearse::FuckTheChurch
+GoodPassWord::12345
+TestUser5::TestUser5
