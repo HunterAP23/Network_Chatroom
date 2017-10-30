@@ -1,16 +1,104 @@
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
+
 #include <iostream>
 #include <Winsock2.h>
 #include <WS2tcpip.h>
+#include <string>
+#include <ctime>
+#include <ratio>
+#include <chrono>
 
 using namespace std;
+using namespace std::chrono;
 
 #define LINESZ  2560
 
+
 static SOCKET connectTCP(char *host, char *service);
 
-int main()
+int main(int argc, char *argv[])
 {
+	// Make sure that we can connect:
+	WORD wVersionRequested;
+	WSADATA wsaData;
+	int err;
+	string message;	//holds message to be posted
+	string mestime;	//holds time the message was sent
+	time_t rightnow; //used to get current time
 
+	// A macro to create a word with low order and high order bytes as specified.
+	wVersionRequested = MAKEWORD(1, 1);
+
+	// Test that version 1.1 is available.
+	err = WSAStartup(wVersionRequested, &wsaData);
+
+	if (err != 0) {
+
+		// Tell the user that we couldn't find a useable winsock.dll. */
+		cerr << "Could not find useable DLL" << endl;
+		return 1;
+	}
+
+	// Confirm that the Windows Sockets DLL supports version 1.1.
+	// Note that if the DLL supports versions greater than 1.1 in addition 
+	//  to 1.1, it will still return1.1 in wVersion since that is the version we
+	// requested.  Note the use of macros.  Further not that this check is not 
+	// really needed.
+
+	if (LOBYTE(wsaData.wVersion) != 1 || HIBYTE(wsaData.wVersion) != 1) {
+
+		// Tell the user that we couldn't find a useable winsock DLL. 
+		WSACleanup();  // Terminates the use of the 
+		cerr << "Could not find useable DLL" << endl;
+		return 1;
+	}
+
+	char *host = "cs.ramapo.edu";		/* The name of the remote host. */
+	char *service = "echo";				/* The service to be accessed. */
+	SOCKET s;							/* The socket for the connection to the remote host. */
+	int nb;								/* The number of bytes read from a single read. */
+	int tnb;							/* The total number of bytes read. */
+	char buff[LINESZ + 1];				/* Response data from the server. */
+	char written[2000];					//hold the 2000 bytes to be written to the echo server
+
+
+										/* Fill in the remote host name and service name from the run-time
+										* parameters. */
+	switch (argc) {
+
+		/* If there are no run-time parameters the default values will be
+		* used. */
+	case 1:
+		break;
+
+		/* Record the host name. */
+	case 2:
+		host = argv[1];
+		break;
+
+		/* If there are more than 1 run-time parameters, the user is in
+		* error. */
+	default:
+		fprintf(stderr, "Usage: client [host [service]]\n");
+		return 1;
+	}
+	
+	while (true) {
+		cout << "Message: ";
+		cin >> message;
+
+		rightnow = system_clock::to_time_t(system_clock::now());
+		mestime = ctime(&rightnow);
+
+		sendToServer(message, mestime);
+		
+	}
+
+	return 0;
+}
+
+void sendToServer(string mess, string time) {
+	
 }
 
 static SOCKET connectTCP(char *host, char *service)
