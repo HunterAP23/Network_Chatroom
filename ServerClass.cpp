@@ -14,6 +14,43 @@ UserName3 :: Password3
 */
 
 //build map using text file of whitelist
+
+/* Something along these lines has to go in server recieve message loop
+if (SOC[i].loggedin ==false)
+{
+	if (Server.LoginAttempt(SOC[i])==false)
+	{
+	//disconnect this socket
+	}
+}
+*/
+
+bool ServerClass::LoginAttempt(client& x)
+{
+	char buff[50]; //login message will not be longer than this
+	std::string username, password;
+	int returnval;
+	returnval = recv(x.s, buff, 50, NULL);
+
+	std::string buffer(buff);
+	
+	//parse their message for username and password
+		buffer.erase(std::remove_if(buffer.begin(), buffer.end(), isspace), buffer.end());
+		username = buffer.substr(0, buffer.find(':'));
+		password = buffer.substr(buffer.find(':') + 1);	
+	//check readmap
+		if (CheckWhiteList(username, password) == true)
+		{
+			x.LoggedIn = true; //log them in
+			return true;
+		}
+		else
+		{
+			//this will tell us to disconnect
+			return false;
+		}
+}
+
 void ServerClass::LoadWhiteList()
 {
 	std::ifstream WhiteList;
@@ -83,6 +120,7 @@ bool ServerClass::NewConnect(SOCKET s)
 {
 	std::cout << "New connect at socket " << s << std::endl;
 	//ask for security code, then ask for password
+	//honestly will probably delete this
 	return true;
 	return false;
 }
