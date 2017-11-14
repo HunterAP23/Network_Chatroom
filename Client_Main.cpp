@@ -1,4 +1,5 @@
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
+#define _CRT_SECURE_NO_WARNINGS
 
 #include <iostream>
 #include <Winsock2.h>
@@ -15,6 +16,8 @@ using namespace std::chrono;
 
 
 static SOCKET connectTCP(char *host, char *service);
+void sendToServer(string mess, string time, SOCKET server); 
+string recFromServer(SOCKET server);
 
 int main(int argc, char *argv[])
 {
@@ -56,10 +59,7 @@ int main(int argc, char *argv[])
 	char *host = "cs.ramapo.edu";		/* The name of the remote host. */
 	char *service = "echo";				/* The service to be accessed. */
 	SOCKET s;							/* The socket for the connection to the remote host. */
-	int nb;								/* The number of bytes read from a single read. */
-	int tnb;							/* The total number of bytes read. */
-	char buff[LINESZ + 1];				/* Response data from the server. */
-	char written[2000];					//hold the 2000 bytes to be written to the echo server
+	string chat;						//hold the most current line from chat
 
 
 										/* Fill in the remote host name and service name from the run-time
@@ -83,6 +83,9 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 	
+	//connect to chat server
+	s = connectTCP(host, service);
+
 	while (true) {
 		cout << "Message: ";
 		cin >> message;
@@ -90,15 +93,48 @@ int main(int argc, char *argv[])
 		rightnow = system_clock::to_time_t(system_clock::now());
 		mestime = ctime(&rightnow);
 
-		sendToServer(message, mestime);
+		sendToServer(message, mestime, s);
+		chat = recFromServer(s);
 		
 	}
 
 	return 0;
 }
 
-void sendToServer(string mess, string time) {
-	
+//sends message and time message was created to server
+void sendToServer(string mess, string time, SOCKET server) {
+	string output = mess + "\nMessage sent at:" + time;
+
+	send(server, output.c_str(), output.length(), 0);
+}
+
+//recieve messages from server
+string recFromServer(SOCKET server) {
+	int nb;								/* The number of bytes read from a single read. */
+	int tnb;							/* The total number of bytes read. */
+	char buff[LINESZ + 1];				/* Response data from the server. */
+
+	/* Read the response from the server.  Recall that the response is
+	* stream oriented and may take more than one read.  (not likely)
+	* A zero length read implies that the server has broken the
+	* connection. */
+	tnb = 0;
+	while ((nb = recv(server, &buff[tnb], LINESZ - tnb, 0)) > 0) {
+		tnb += nb;
+	}
+	/* If there was an error on the read, report it. */
+	if (nb < 0) {
+		perror("read");
+		return "";
+	}
+
+	string response = "";	//response from server
+	//add buff to response
+	for (int i = 0; i < nb; i++) {
+		response += buff[i];
+	}
+
+	return response;
 }
 
 static SOCKET connectTCP(char *host, char *service)
