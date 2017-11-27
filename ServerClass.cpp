@@ -155,9 +155,12 @@ bool ServerClass::receiveMsg(SOCKET ls)
 
 bool ServerClass::sendAll(std::vector<SOCKET> c, const char * str, int nb)
 {
+	std::string s = PREFIX;
+	s += str;
+
 	for (int i = 1; i < c.size(); i++) {
 
-		if (!send(c[i], str, nb, 0)) {
+		if (!send(c[i], s.c_str(), nb + 1, 0)) {
 
 			return false;
 		}
@@ -202,7 +205,7 @@ bool ServerClass::LoginAttempt(client& x)
 	//check readmap
 	if (CheckWhiteList(username, password) == true)
 	{
-		x.LoggedIn = true; //log them in
+		//x.LoggedIn = true; //log them in
 		return true;
 	}
 	else
@@ -309,7 +312,7 @@ passiveTCP - allocates and binds a server socket using TCP
 
 SYNOPSYS
 */
-static SOCKET passiveTCP(char *service, int qlen)
+SOCKET ServerClass::passiveTCP(char *service, int qlen)
 /*
 DESCRIPTION
 

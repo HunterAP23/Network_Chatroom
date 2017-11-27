@@ -15,6 +15,8 @@ const int MAX_CLIENTS = 64;
 const int LINESZ = 2048;
 //maximum number of clients allowed to be waiting for a connection
 const int QUEUESZ = 10;
+//prefix applied to all messages sent by the server.
+const std::string PREFIX = ":";
 
 //class ServerClass
 //Handles all server functions, including password checking, etc.
@@ -37,6 +39,8 @@ public:
 
 	//sends a message, str, to all connected users.
 	bool sendAll(std::vector<SOCKET> c, const char * str, int nb);
+
+	static SOCKET passiveTCP(char *service, int qlen);
 
 
 	bool LoginAttempt(client& x);
