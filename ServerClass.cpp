@@ -51,20 +51,17 @@ bool ServerClass::receiveMsg(SOCKET ls)
 
 	// Char buff for accepting messages.
 	char buff[LINESZ];
-
-	// Set of clients we're connected to.
-	std::vector<SOCKET> clients;
-	clients.push_back(ls);
-
-
+	
+	//moved add listen socket to inside the fdset loop as we are using a client vector
 
 	while (true) {
 		// Construct the fd_set from scratch each loop.
 		fd_set navi;
 		FD_ZERO(&navi);
+		FD_SET(ls, &navi);
 		for (unsigned int i = 0; i < clients.size(); i++) {
-			if (clients[i] != 0) {
-				FD_SET(clients[i], &navi);
+			if (clients[i].s != 0) {
+				FD_SET(clients[i].s, &navi);
 			}
 		}
 
@@ -84,21 +81,17 @@ bool ServerClass::receiveMsg(SOCKET ls)
 		* This is the block where login attempts will be processed.                                                   *
 		**************************************************************************************************************/
 		// Check if someone is trying to connect, accept and add them to clients if so.
-		if (FD_ISSET(clients[0], &navi) != 0) {
-			/* Note: the casing of the address sockaddr_in to sockaddr is
-			* neccessary to support other types of connections which use
-			* different address families. */
+		if (FD_ISSET(ls, &navi) != 0) {
 			struct sockaddr_in fsin;// Address of the client.
 			int alen = sizeof(sockaddr_in);  // Length of client address.  UNIX does not 
 											 // require that you specify a size.
-			SOCKET s = accept(clients[0], (struct sockaddr *) &fsin, &alen/*NULL*/);
+			SOCKET AcceptSocket = accept(ls, (struct sockaddr *) &fsin, &alen/*NULL*/);
 
-			if (s == INVALID_SOCKET) {
-
+			if (AcceptSocket == INVALID_SOCKET) {
 				int errorcode = WSAGetLastError();
 			}
 			else {
-				clients.push_back(s);
+				clients.push_back(client(AcceptSocket));
 			}
 		}
 		/**************************************************************************************************************/
@@ -107,20 +100,32 @@ bool ServerClass::receiveMsg(SOCKET ls)
 		for (unsigned int i = 1; i < clients.size(); i++) {
 
 			// Check if the socket is ready to read.
-			if (FD_ISSET(clients[i], &navi) != 0) {
+			if (FD_ISSET(clients[i].s, &navi) != 0) {
+
+				//check to see if they have logged in
+				if (!clients[i].loggedin)
+				{
+					//go through loginprocess
+					if (!LoginAttempt(clients[i]))
+					{
+						//if it fails, disconnect them and continue to next iteration
+						clients.erase(clients.begin() + i);
+						i--;
+						continue;
+					}
+					//successfull login will change client loginvalue in the function
+				} //end logincheck
 
 				// Number of Bytes read.
 				int nb;
-
 				// Read the socket.
-				if ((nb = recv(clients[i], &buff[0], LINESZ, 0))) {
+				if ((nb = recv(clients[i].s, &buff[0], LINESZ, 0))) {
 					// Read nothing.
 					if (nb == 0) {
 						continue;
 					}
-
-					// Message everyone.
-					else if (sendAll(clients, &buff[0], nb)) {
+					// Message everyone what we recieved
+					else if (sendAll(&buff[0], nb)) {
 						// Print what was sent.
 						for (int j = 0; j < nb; j++) {
 							std::cout << buff[j];
@@ -152,20 +157,24 @@ bool ServerClass::receiveMsg(SOCKET ls)
 	return true;
 }
 
+void ServerClass::serverFailure(std::vector<client> &c)
+{
+	char buff[LINESZ] = "500: Internal Server Error";
+	sendAll(&buff[0], strlen(buff));
+}
 
-bool ServerClass::sendAll(std::vector<SOCKET> c, const char * str, int nb)
+bool ServerClass::sendAll(const char * str, int nb)
 {
 	std::string s = PREFIX;
 	s += str;
 
-	for (int i = 1; i < c.size(); i++) {
-
-		if (!send(c[i], s.c_str(), nb + 1, 0)) {
+	for (int i = 1; i < clients.size(); i++) {
+		//should probably errorcheck here
+		if (!send(clients[i].s, s.c_str(), nb + 1, 0)) {
 
 			return false;
 		}
 	}
-
 	return true;
 }
 
@@ -206,10 +215,12 @@ bool ServerClass::LoginAttempt(client& x)
 	if (CheckWhiteList(username, password) == true)
 	{
 		//x.LoggedIn = true; //log them in
+		x.loggedin = true;
 		return true;
 	}
 	else
 	{
+		x.loggedin = false;
 		//this will tell us to disconnect
 		return false;
 	}
@@ -276,44 +287,10 @@ std::string ServerClass::GetWhiteList()
 	return m_WhiteList;
 }
 
-/*NewConnect
-for after the socket has initally connected, but needs to do the 'handshake' and login process
-first check for security code, then check login process
-*/
-bool ServerClass::NewConnect(SOCKET s)
-{
-	std::cout << "New connect at socket " << s << std::endl;
-	//ask for security code, then ask for password
-	//honestly will probably delete this
-	return true;
-	return false;
-}
-
-/* CheckSecurityCode
-for checking security code to make sure client has the correct code
-*/
-bool ServerClass::CheckSecurityCode(int code)
-{
-	if (code == keycode) {
-		std::cout << "It's an older code, but it checks out " << std::endl;
-		return true;
-	}
-	else
-	{
-		std::cout << "Incorrect keycode, access denied" << std::endl;
-		return false;
-	}
-}
-
 /*
 NAME
 
 passiveTCP - allocates and binds a server socket using TCP
-
-SYNOPSYS
-*/
-SOCKET ServerClass::passiveTCP(char *service, int qlen)
-/*
 DESCRIPTION
 
 This function will create a socket, bind the server "service" to
@@ -325,6 +302,8 @@ RETURNS
 This function returns the listening socket if it is successful and
 does not return if it fails.
 */
+SOCKET ServerClass::passiveTCP(char *service, int qlen)
+
 {
 	struct servent *pse; /* Points to service information. */
 	struct sockaddr_in sin; /* Internet endpoint address. */
@@ -367,4 +346,10 @@ does not return if it fails.
 	}
 	// Return the listening socket. 
 	return ls;
+}
+
+ client::client(SOCKET sock)
+{
+	 this->s = sock;
+	 this->loggedin = false;
 }
