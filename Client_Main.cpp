@@ -8,6 +8,7 @@
 #include <ctime>
 #include <ratio>
 #include <chrono>
+#include "Client.h"
 
 using namespace std;
 using namespace std::chrono;
@@ -60,7 +61,9 @@ int main(int argc, char *argv[])
 	char *service = "echo";				/* The service to be accessed. */
 	SOCKET s;							/* The socket for the connection to the remote host. */
 	string chat;						//hold the most current line from chat
-
+	string name;						//username for server
+	string pass;						//password for server
+	ClientClass client;					//client object 
 
 										/* Fill in the remote host name and service name from the run-time
 										* parameters. */
@@ -86,21 +89,30 @@ int main(int argc, char *argv[])
 	//connect to chat server
 	s = connectTCP(host, service);
 
+	cout << "Please enter Username: ";
+	cin >> name;
+	cout << "Please enter Password: ";
+	cin >> pass;
+
+	//sign in to server
+	client.SetUserName(name);
+	client.SetPassWord(pass);
+	client.StartConnect(s);
+
 	while (true) {
 		cout << "Message: ";
 		cin >> message;
 
-		rightnow = system_clock::to_time_t(system_clock::now());
-		mestime = ctime(&rightnow);
+		client.CSend(s, client)
 
-		sendToServer(message, mestime, s);
 		chat = recFromServer(s);
+		//send chat to other window
 		
 	}
 
 	return 0;
 }
-
+/
 //sends message and time message was created to server
 void sendToServer(string mess, string time, SOCKET server) {
 	string output = mess + "\nMessage sent at:" + time;
